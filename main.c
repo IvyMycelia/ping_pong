@@ -28,6 +28,12 @@ void swap_and_poll(GLFWwindow* window) {
     glfwPollEvents();
 }
 
+// Exit and terminate window process
+void window_exit(GLFWwindow* window) {
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}
+
 // Draw a Triangle (Alpha)
 void draw_triangle(float alpha) {
     glBegin(GL_TRIANGLES);
@@ -114,6 +120,11 @@ void loading_screen(GLFWwindow* window) {
     alpha = 1.0f;
 }
 
+void options_menu(GLFWwindow* window) {
+    ;
+}
+
+
 int main() {
     float border = 0.01f;
 
@@ -139,15 +150,19 @@ int main() {
     loading_screen(window);
     usleep(1000000);
 
-    int selected = 0;
+    int should_exit = 0;
+    int playing = 0;
+
     int left_down_last_frame = 0;
 
     Rect playButton =    {-0.5f, 0.0f, 1.00f, 0.30f};
     Rect optionsButton = {-0.5f, -0.35f, 1.00f, 0.30f};
     Rect exitButton =    {-0.5f, -0.7f, 1.00f, 0.30f};
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window) && !should_exit) {
         clear(0.2f, 0.2f, 0.2f, 1.0f);
+
+        int selected = -1;
 
         int left_down = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
@@ -160,43 +175,62 @@ int main() {
         float mouse_x = (float)(mouse_x_pixels / width) * 2.0f - 1.0f;
         float mouse_y = 1.0f - (float)(mouse_y_pixels / height) * 2.0f;
 
-        if (is_mouse_over(playButton, mouse_x, mouse_y) && left_down && !left_down_last_frame) {
-            Rect test = {-0.5f, 0.0f, 1.00f, 0.30f};
-            draw_rectangle(test, 1.0f, 1.0f, 1.0f, 1.0f);
+        if (!playing) {
+            /* Check Hover & Clicks */
+            // If Play Button is Pressed
+            if (is_mouse_over(playButton, mouse_x, mouse_y)) {
+                if (left_down && !left_down_last_frame) playing = 1;
+                selected = 0;
+            }
+
+            // If Options Button is Pressed
+            if (is_mouse_over(optionsButton, mouse_x, mouse_y)) {
+                if (left_down && !left_down_last_frame) options_menu(window);
+                selected = 1;
+            }
+
+            // If Exit Button is Pressed
+            if (is_mouse_over(exitButton, mouse_x, mouse_y)) {
+                if (left_down && !left_down_last_frame) should_exit = 1;
+                selected = 2;
+            }
+
+            /* Draw Menu */
+            // Play
+            draw_rectangle(playButton, 0.5f, 0.5f, 0.5f, 1.0f);
+            draw_rectangle_outline(-0.5f - border, 0.0f - border, 1.0f + border * 2, 0.3f + border * 2, 
+                selected == 0 ? 1.0f : 0.5f,
+                selected == 0 ? 1.0f : 0.5f,
+                selected == 0 ? 1.0f : 0.5f,
+                1.0f
+            );
+
+            // Options
+            draw_rectangle(optionsButton, 0.5f, 0.5f, 0.5f, 1.0f);
+            draw_rectangle_outline(-0.5f - border,     -0.35f - border, 1.0f + border * 2, 0.3f + border * 2, 
+                selected == 1 ? 1.0f : 0.5f,
+                selected == 1 ? 1.0f : 0.5f,
+                selected == 1 ? 1.0f : 0.5f,
+                1.0f
+            );
+
+            // Exit
+            draw_rectangle(exitButton, 0.5f, 0.5f, 0.5f, 1.0f);
+            draw_rectangle_outline(-0.5f - border, -0.7f - border, 1.0f + border * 2, 0.3f + border * 2, 
+                selected == 2 ? 1.0f : 0.5f,
+                selected == 2 ? 1.0f : 0.5f,
+                selected == 2 ? 1.0f : 0.5f,
+                1.0f
+            );
+        } else {
+            // Gameplay Logic
+            printf("Playing");
         }
-        left_down_last_frame = left_down;
 
-        switch (selected) {
-            case 0:
-                // Play
-                draw_rectangle(playButton, 0.5f, 0.5f, 0.5f, 1.0f);
-                draw_rectangle_outline(-0.5f - border,     0.0f - border, 1.0f + border * 2, 0.3f + border * 2, 0.1f, 0.3f, 0.6f, 1.0f);
-
-                // Options
-                draw_rectangle(optionsButton,   0.5f, 0.5f, 0.5f, 1.0f);
-                draw_rectangle_outline(-0.5f - border,     -0.35f - border, 1.0f + border * 2, 0.3f + border * 2, 0.2f, 0.2f, 0.2f, 1.0f);
-
-                // Exit
-                draw_rectangle(exitButton,   0.5f, 0.5f, 0.5f, 1.0f);
-                draw_rectangle_outline(-0.5f - border,     -0.7f - border, 1.0f + border * 2, 0.3f + border * 2, 0.2f, 0.2f, 0.2f, 1.0f);
-
-                break;
-            case 1:
-
-                break;
-            case 2:
-
-                break;   
-            case 3:
-
-                break;
-        }
-
-        
+        left_down_last_frame = left_down;        
 
         swap_and_poll(window);
     }
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    window_exit(window);
 }
