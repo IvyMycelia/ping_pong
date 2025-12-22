@@ -170,7 +170,7 @@ int main() {
         glfwGetCursorPos(window, &mouse_x_pixels, &mouse_y_pixels);
         
         int width, height;
-        glfwGetWindowSize(window, &width, &height);
+        glfwGetFramebufferSize(window, &width, &height);
 
         float mouse_x = (float)(mouse_x_pixels / width) * 2.0f - 1.0f;
         float mouse_y = 1.0f - (float)(mouse_y_pixels / height) * 2.0f;
