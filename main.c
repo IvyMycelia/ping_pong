@@ -9,6 +9,10 @@
 #include <unistd.h>
 #include <math.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+GLuint font_texture;
 
 typedef struct {
     float x, y;
@@ -27,6 +31,22 @@ typedef struct {
     float w; // Width
     float h; // Height
 } Rect;
+
+void load_font_texture(const char* path) {
+    int width, height, channels;
+    unsigned char* data = stbi_load(path, &width, &height, &channels, 4);
+    if (!data) {
+        fprintf(stderr, "Could not load texture: %s\n", path);
+        exit(1);
+    }
+
+    glGenTextures(1, &font_texture);
+    glBindTexture(GL_TEXTURE_2D, font_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    stbi_image_free(data);
+}
 
 // Clear the window and load background
 void clear(float r, float g, float b, float a) {
@@ -82,6 +102,58 @@ void draw_rectangle(Rect rect, float r, float g, float b, float a) {
         glColor4f(r, g, b, a); glVertex2f(rect.x + rect.w, rect.y + rect.h);
         glColor4f(r, g, b, a); glVertex2f(rect.x, rect.y + rect.h);
     glEnd();
+}
+
+// Draw an individual character (Character, X-Position, Y-Position, Size)
+void draw_char(char c, float x, float y, float size) {
+const char font_chars[] =
+    " !\"#$%&'()*+,-./"
+    "0123456789:;<=>?"
+    "@ABCDEFGHIJKLMNO"
+    "PQRSTUVWXYZ[\\]^_"
+    "`abcdefghijklmno"
+    "pqrstuvwxyz{|}~";
+
+    int index = -1;
+    for (int i = 0; font_chars[i]; i++) {
+        if (font_chars[i] == c) {
+            index = i;
+            break;
+        }
+    }
+    if (index == -1) return;
+    int cols = 16;
+    int col = index % 16;
+    int row = index / 16;
+
+    float cell_w = 8.0f / 128.0f;
+    float cell_h = 12.0f / 72.0f;
+
+    float u0 = col * cell_w;
+    float v0 = (5 - row) * cell_h;
+    float u1 = u0 + cell_w;
+    float v1 = v0 + cell_h;
+
+    glBindTexture(GL_TEXTURE_2D, font_texture);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glBegin(GL_TRIANGLES);
+        glTexCoord2f(u0, 1.0f - v1); glVertex2f(x, y);                 // Top-Left
+        glTexCoord2f(u1, 1.0f - v1); glVertex2f(x + size, y);          // Top-Right
+        glTexCoord2f(u1, 1.0f - v0); glVertex2f(x + size, y - size);   // Bottom-Right
+
+        glTexCoord2f(u0, 1.0f - v1); glVertex2f(x, y);                 // Top-Left
+        glTexCoord2f(u1, 1.0f - v0); glVertex2f(x + size, y - size);   // Bottom-Right
+        glTexCoord2f(u0, 1.0f - v0); glVertex2f(x, y - size);          // Bottom-Left
+    glEnd();
+}
+
+// Draw a string of text (Text, X-Position, Y-Position, Size)
+void draw_text(const char* text, float x, float y, float size) {
+    float start = x;
+    for (int i = 0; text[i]; i++) {
+        draw_char(text[i], start, y, size);
+        start += size;
+    }
 }
 
 // Return if the mouse is over an element (Rectangle, Mouse-X, Mouse-Y)
@@ -154,7 +226,11 @@ int main() {
 
     glfwMakeContextCurrent(window);
     glEnable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    load_font_texture("font.png");
+
 
     // glfwCreateCursor()
 
@@ -171,9 +247,17 @@ int main() {
     Rect optionsButton = {-0.5f, -0.35f, 1.00f, 0.30f};
     Rect exitButton =    {-0.5f, -0.7f, 1.00f, 0.30f};
 
+    float button_text_size = playButton.h * 0.6f;
+
     Paddle leftPaddle = {-0.9f, -0.15f, 0.05f, 0.3f};
     Paddle rightPaddle = {0.85f, -0.15f, 0.05f, 0.3f};
     Ball ball = {0.0f, 0.0f, 0.03f, (rand() % 2 ? 0.01f : -0.01f), (rand() % 2 ? 0.015f : -0.015f)};
+
+    int left_points = 0; int right_points = 0;
+
+    int fb_width, fb_height;
+    glfwGetFramebufferSize(window, &fb_width, &fb_height);
+    glViewport(0, 0, fb_width, fb_height);
 
     while (!glfwWindowShouldClose(window) && !should_exit) {
         clear(0.2f, 0.2f, 0.2f, 1.0f);
@@ -184,10 +268,6 @@ int main() {
 
         double mouse_x_pixels, mouse_y_pixels;
         glfwGetCursorPos(window, &mouse_x_pixels, &mouse_y_pixels);
-        
-        int fb_width, fb_height;
-        glfwGetFramebufferSize(window, &fb_width, &fb_height);
-        glViewport(0, 0, fb_width, fb_height);
 
         int width, height;
         glfwGetWindowSize(window, &width, &height);
@@ -253,9 +333,22 @@ int main() {
                 selected == 2 ? 1.0f : 0.5f,
                 1.0f
             );
+
+            glEnable(GL_TEXTURE_2D);
+            glColor4f(1, 1, 1, 1);
+            const char* play_text = "PLAY";
+            float play_txt_width = strlen(play_text) * button_text_size;
+            float play_txt_x = playButton.x + (playButton.w - play_txt_width) / 2.0f;
+            float play_txt_y = playButton.y + (playButton.h + button_text_size) / 2.0f;
+            draw_text(play_text, play_txt_x, play_txt_y, button_text_size);
+            const char* exit_text = "EXIT";
+            float exit_text_x = exitButton.x + (exitButton.w - strlen(exit_text) * button_text_size) / 2.0f;
+            float exit_text_y = exitButton.y + (exitButton.h + button_text_size) / 2.0f;
+            draw_text(exit_text, exit_text_x, exit_text_y, button_text_size);
+            glDisable(GL_TEXTURE_2D);
         } else {
             // Exit Back to Main Menu
-            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) playing = 0;
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_KEY_UP) playing = 0;
 
 
             /* Gameplay Logic */
@@ -323,11 +416,19 @@ int main() {
             }
 
 
-            // Reset if Ball goes too far Left / Right
-            if (ball.x < -1.1f || ball.x > 1.1f) {
+            // Reset if Ball goes too far Left
+            if (ball.x < -1.1f) {
                 ball.x = ball.y = 0.0f;
                 ball.vx = (rand() % 2 ? 0.01f : -0.01f);
                 ball.vy = (rand() % 2 ? 0.015f : -0.015f);
+                right_points++;
+            }
+            // Reset if Ball goes too far right
+            if (ball.x > 1.1f) {
+                ball.x = ball.y = 0.0f;
+                ball.vx = (rand() % 2 ? 0.01f : -0.01f);
+                ball.vy = (rand() % 2 ? 0.015f : -0.015f);
+                left_points++;
             }
 
 
@@ -338,6 +439,28 @@ int main() {
             
             // Draw Ball (Square lol)
             draw_rectangle((Rect){ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2}, 1.0f, 0.1f, 0.1f, 1.0f);
+
+            /* Scores */
+            glEnable(GL_TEXTURE_2D);
+            glColor4f(1, 1, 1, 1);
+
+            // Left
+            char left_score[16];
+            sprintf(left_score, "%d", left_points);
+            float left_score_width = strlen(left_score) * button_text_size;
+            float left_score_x = -0.5f - left_score_width / 2.0f;
+            float left_score_y = 0.8f;
+            draw_text(left_score, left_score_x, left_score_y, button_text_size);
+
+            // Right
+            char right_score[16];
+            sprintf(right_score, "%d", right_points);
+            float right_score_width = strlen(right_score) * button_text_size;
+            float right_score_x = 0.5f - right_score_width / 2.0f;
+            float right_score_y = 0.8f;
+            draw_text(right_score, right_score_x, right_score_y, button_text_size);
+
+            glDisable(GL_TEXTURE_2D);
         }
 
         left_down_last_frame = left_down;        
