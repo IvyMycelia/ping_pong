@@ -201,6 +201,8 @@ int main() {
         float mouse_x = (float)(mouse_x_fb / fb_width) * 2.0f - 1.0f;
         float mouse_y = 1.0f - (float)(mouse_y_fb / fb_height) * 2.0f;
 
+        float speed = 0.02f;
+
         if (!playing) {
             // Exit on Escape
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) should_exit = 1;
@@ -284,13 +286,39 @@ int main() {
             // Left Paddle
             if (ball.x - ball.radius <= leftPaddle.x + leftPaddle.w &&
                 ball.y >= leftPaddle.y && ball.y <= leftPaddle.y + leftPaddle.h) {
-                    ball.vx *= -1.0f;
+                    float paddleCenter = leftPaddle.y + leftPaddle.h / 2.0f;
+                    float hitPos = (ball.y - paddleCenter) / (leftPaddle.h / 2.0f); // -1 to 1
+
+                    // Guarantee minimum vertical speed
+                    if (fabs(hitPos) < 0.1f) hitPos = (hitPos < 0 ? -0.1f : 0.1f);
+
+                    // Limit vertical angle so it doesn't go crazzzyyyyy
+                    if (hitPos > 0.9f) hitPos = 0.9f;
+                    if (hitPos < -0.9f) hitPos = -0.9f;
+
+                    // Calculate new velocity with speed constant
+                    ball.vy = hitPos * fabs(ball.vx); // adjust multiplier to control angle
+                    ball.vx = (ball.vx < 0 ? 1 : -1) * sqrt(speed * speed / (1 + hitPos * hitPos));
+
                     ball.x = leftPaddle.x + leftPaddle.w + ball.radius; // Prevent Sticking
             }
             // Right Paddle
             if (ball.x + ball.radius >= rightPaddle.x &&
                 ball.y >= rightPaddle.y && ball.y <= rightPaddle.y + rightPaddle.h) {
-                    ball.vx *= -1.0f;
+                    float paddleCenter = rightPaddle.y + rightPaddle.h / 2.0f;
+                    float hitPos = (ball.y - paddleCenter) / (rightPaddle.h / 2.0f); // -1 to 1
+
+                    // Guarantee minimum vertical speed
+                    if (fabs(hitPos) < 0.1f) hitPos = (hitPos < 0 ? -0.1f : 0.1f);
+
+                    // Limit vertical angle so it doesn't go crazzzyyyyy
+                    if (hitPos > 0.9f) hitPos = 0.9f;
+                    if (hitPos < -0.9f) hitPos = -0.9f;
+
+                    // Calculate new velocity with speed constant
+                    ball.vy = hitPos * fabs(ball.vx); // adjust multiplier to control angle
+                    ball.vx = (ball.vx < 0 ? 1 : -1) * sqrt(speed * speed / (1 + hitPos * hitPos));
+
                     ball.x = rightPaddle.x - ball.radius; // Prevent Sticking
             }
 
