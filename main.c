@@ -202,6 +202,9 @@ int main() {
         float mouse_y = 1.0f - (float)(mouse_y_fb / fb_height) * 2.0f;
 
         if (!playing) {
+            // Exit on Escape
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) should_exit = 1;
+
             /* Check Hover & Clicks */
             // If Play Button is Pressed
             if (is_mouse_over(playButton, mouse_x, mouse_y)) {
