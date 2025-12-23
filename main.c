@@ -296,7 +296,7 @@ int main() {
             if (ball.x < -1.1f || ball.x > 1.1f) {
                 ball.x = ball.y = 0.0f;
                 ball.vx = (rand() % 2 ? 0.01f : -0.01f);
-                ball.vy = ball.vx = (rand() % 2 ? 0.015f : -0.015f);
+                ball.vy = (rand() % 2 ? 0.015f : -0.015f);
             }
 
 
