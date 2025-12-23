@@ -9,6 +9,18 @@
 #include <unistd.h>
 #include <math.h>
 
+
+typedef struct {
+    float x, y;
+    float w, h;
+} Paddle;
+
+typedef struct {
+    float x, y;
+    float radius;
+    float vy, vx;
+} Ball;
+
 typedef struct {
     float x; // Top-Left X Coordinate
     float y; // Top-Left Y Coordinate
@@ -127,7 +139,8 @@ void options_menu(GLFWwindow* window) {
 
 int main() {
     float border = 0.01f;
-
+    
+    glfwInitHint(GLFW_PLATFORM_COCOA, GLFW_TRUE);
     if (!glfwInit()) {
         fprintf(stderr, "Failed to intialize GLFW");
         return -1;
@@ -140,7 +153,6 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
-    glfwInitHint(GLFW_PLATFORM_COCOA, GLFW_TRUE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -159,6 +171,10 @@ int main() {
     Rect optionsButton = {-0.5f, -0.35f, 1.00f, 0.30f};
     Rect exitButton =    {-0.5f, -0.7f, 1.00f, 0.30f};
 
+    Paddle leftPaddle = {-0.9f, -0.15f, 0.05f, 0.3f};
+    Paddle rightPaddle = {0.85f, -0.15f, 0.05f, 0.3f};
+    Ball ball = {0.0f, 0.0f, 0.03f, 0.01f, 0.015f};
+
     while (!glfwWindowShouldClose(window) && !should_exit) {
         clear(0.2f, 0.2f, 0.2f, 1.0f);
 
@@ -169,11 +185,21 @@ int main() {
         double mouse_x_pixels, mouse_y_pixels;
         glfwGetCursorPos(window, &mouse_x_pixels, &mouse_y_pixels);
         
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        int fb_width, fb_height;
+        glfwGetFramebufferSize(window, &fb_width, &fb_height);
+        glViewport(0, 0, fb_width, fb_height);
 
-        float mouse_x = (float)(mouse_x_pixels / width) * 2.0f - 1.0f;
-        float mouse_y = 1.0f - (float)(mouse_y_pixels / height) * 2.0f;
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+
+        float scale_x = (float)fb_width / width;
+        float scale_y = (float)fb_height / height;
+
+        float mouse_x_fb = mouse_x_pixels * scale_x;
+        float mouse_y_fb = mouse_y_pixels * scale_y;
+
+        float mouse_x = (float)(mouse_x_fb / fb_width) * 2.0f - 1.0f;
+        float mouse_y = 1.0f - (float)(mouse_y_fb / fb_height) * 2.0f;
 
         if (!playing) {
             /* Check Hover & Clicks */
@@ -184,10 +210,10 @@ int main() {
             }
 
             // If Options Button is Pressed
-            if (is_mouse_over(optionsButton, mouse_x, mouse_y)) {
-                if (left_down && !left_down_last_frame) options_menu(window);
-                selected = 1;
-            }
+            // if (is_mouse_over(optionsButton, mouse_x, mouse_y)) {
+            //     if (left_down && !left_down_last_frame) options_menu(window);
+            //     selected = 1;
+            // }
 
             // If Exit Button is Pressed
             if (is_mouse_over(exitButton, mouse_x, mouse_y)) {
@@ -206,13 +232,13 @@ int main() {
             );
 
             // Options
-            draw_rectangle(optionsButton, 0.5f, 0.5f, 0.5f, 1.0f);
-            draw_rectangle_outline(-0.5f - border,     -0.35f - border, 1.0f + border * 2, 0.3f + border * 2, 
-                selected == 1 ? 1.0f : 0.5f,
-                selected == 1 ? 1.0f : 0.5f,
-                selected == 1 ? 1.0f : 0.5f,
-                1.0f
-            );
+            // draw_rectangle(optionsButton, 0.5f, 0.5f, 0.5f, 1.0f);
+            // draw_rectangle_outline(-0.5f - border,     -0.35f - border, 1.0f + border * 2, 0.3f + border * 2, 
+            //     selected == 1 ? 1.0f : 0.5f,
+            //     selected == 1 ? 1.0f : 0.5f,
+            //     selected == 1 ? 1.0f : 0.5f,
+            //     1.0f
+            // );
 
             // Exit
             draw_rectangle(exitButton, 0.5f, 0.5f, 0.5f, 1.0f);
@@ -223,8 +249,46 @@ int main() {
                 1.0f
             );
         } else {
-            // Gameplay Logic
-            printf("Playing");
+            /* Gameplay Logic */
+            
+            // Move Paddles
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) leftPaddle.y += 0.02f;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) leftPaddle.y -= 0.02f;
+            if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) rightPaddle.y += 0.02f;
+            if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) rightPaddle.y -= 0.02f;
+
+            // Move Ball
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Bounce off Top / Bottom
+            if (ball.y + ball.radius >= 1.0f || ball.y - ball.radius <= -1.0f) ball.vy *= -1;
+
+            // Bounce off Paddles
+            if (ball.x - ball.radius <= leftPaddle.x + leftPaddle.w &&
+                ball.y >= leftPaddle.y && ball.y <= leftPaddle.y + leftPaddle.h) {
+                    ball.vx *= -1.0f;
+                    ball.x = leftPaddle.x + leftPaddle.y + ball.radius; // Prevent Sticking
+            }
+            if (ball.x - ball.radius <= rightPaddle.x + rightPaddle.w &&
+                ball.y >= rightPaddle.y && ball.y <= rightPaddle.y + rightPaddle.h) {
+                    ball.vx *= -1.0f;
+                    ball.x = rightPaddle.x + rightPaddle.y + ball.radius; // Prevent Sticking
+            }
+
+            // Reset if Ball goes too far Left / Right
+            if (ball.x < -1.1f || ball.x > 1.1f) {
+                ball.x = ball.y = 0.0f;
+                ball.vx = 0.01f * (ball.vx > 0 ? 1 : -1);
+                ball.vy = 0.015f;
+            }
+
+            // Draw Paddles
+            draw_rectangle((Rect){leftPaddle.x, leftPaddle.y, leftPaddle.w, leftPaddle.h}, 1.0f, 1.0f, 1.0f, 1.0f);
+            draw_rectangle((Rect){rightPaddle.x, rightPaddle.y, rightPaddle.w, rightPaddle.h}, 1.0f, 1.0f, 1.0f, 1.0f);
+
+            // Draw Ball (Square lol)
+            draw_rectangle((Rect){ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2}, 1.0f, 0.1f, 0.1f, 1.0f);
         }
 
         left_down_last_frame = left_down;        
