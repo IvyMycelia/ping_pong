@@ -258,7 +258,7 @@ int main() {
     int fb_width, fb_height;
     glfwGetFramebufferSize(window, &fb_width, &fb_height);
     glViewport(0, 0, fb_width, fb_height);
-
+    
     while (!glfwWindowShouldClose(window) && !should_exit) {
         clear(0.2f, 0.2f, 0.2f, 1.0f);
 
@@ -283,9 +283,16 @@ int main() {
 
         float speed = 0.02f;
 
+        // Escape key detect
+        static int escp_last = 0;
+        int escp_down = glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+        if (escp_down && !escp_last) {
+            if (playing) playing = 0; // Back to Main Menu on Escape
+            else should_exit = 1;     // Exit on Escape
+        }
+        escp_last = escp_down;
+
         if (!playing) {
-            // Exit on Escape
-            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) should_exit = 1;
 
             /* Check Hover & Clicks */
             // If Play Button is Pressed
@@ -348,8 +355,7 @@ int main() {
             glDisable(GL_TEXTURE_2D);
         } else {
             // Exit Back to Main Menu
-            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_KEY_UP) playing = 0;
-
+            
 
             /* Gameplay Logic */
 
