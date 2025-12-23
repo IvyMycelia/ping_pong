@@ -354,9 +354,6 @@ int main() {
             draw_text(exit_text, exit_text_x, exit_text_y, button_text_size);
             glDisable(GL_TEXTURE_2D);
         } else {
-            // Exit Back to Main Menu
-            
-
             /* Gameplay Logic */
 
             // Move Paddles
@@ -439,8 +436,8 @@ int main() {
 
 
             // Draw Paddles
-            draw_rectangle((Rect){leftPaddle.x, leftPaddle.y, leftPaddle.w, leftPaddle.h}, 1.0f, 1.0f, 1.0f, 1.0f);
-            draw_rectangle((Rect){rightPaddle.x, rightPaddle.y, rightPaddle.w, rightPaddle.h}, 1.0f, 1.0f, 1.0f, 1.0f);
+            draw_rectangle((Rect){leftPaddle.x, leftPaddle.y, leftPaddle.w, leftPaddle.h}, 0.1f, 0.7f, 0.2f, 1.0f);
+            draw_rectangle((Rect){rightPaddle.x, rightPaddle.y, rightPaddle.w, rightPaddle.h}, 0.1f, 0.2f, 0.7f, 1.0f);
 
             
             // Draw Ball (Square lol)
